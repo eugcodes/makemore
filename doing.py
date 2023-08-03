@@ -92,7 +92,7 @@ for i in range(10):
             break
     print(''.join(out))
     names.append(''.join(out))
-
+ 
 # Evaluate using log(likelihood)
 log_likelihood = 0.0
 n = 0
