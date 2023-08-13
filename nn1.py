@@ -18,9 +18,6 @@ stoi['.'] = 0
 # Dictionary mapping integers to characters  
 itos = {i:s for s, i in stoi.items()}
 
-# define a dictionary to count bigram occurrences
-# b = {}
-
 # create a 27x27 array for improved efficiency
 N = torch.zeros((27,27), dtype=torch.int32)
 
@@ -35,23 +32,58 @@ for w in words[:1]:
         xs.append(ix1)
         ys.append(ix2)
 
+# input tensor
 xs = torch.tensor(xs)
+
+# label tensor 
 ys = torch.tensor(ys)
 
-xenc = F.one_hot(xs, num_classes=27)
-yenc = F.one_hot(ys, num_classes=27)
+# seed a psudeo random number generator to ensure reproducibility for the purposes of learning
+g = torch.Generator().manual_seed(2147483647)
 
-plt.imshow(xenc)
+# initialize weights randomly from normal distribution
+# note: '@' is pytorch  matrix multiplication
+# In W, the first dimension represents the activations of each input on each of the neurons. The number of neurons is given by the second dimension.
+# Neurons here are simple - no bias, no non-linearity
+W = torch.randn((27, 27), generator=g)
+
+############ 
+# Forward pass - run model on all inputs to get predictions
+#
+# create one hot encodings for xs 
+# cast one hot encodings (int64) into float (32)
+xenc = F.one_hot(xs, num_classes=27).float()
+
+# 'logits' are log counts. We interpret the random values from the normal distribution used to initialize W as log counts.
+logits = xenc @ W 
+
+# Element-wise exponentiate numbers to tranform values into positive values and normalize to obtain probabilities
+# Softmax function
+counts = logits.exp()
+probs = counts / counts.sum(1, keepdim=True)
+
+# calculate loss
+# note arange() is similar to range(), 
+# using the average loss (i.e. normalizing by the number of samples)
+loss = -probs[torch.arange(5), ys].log().mean()
+
+# backward pass
+
+# update model parameters
+
+
+
+yenc = F.one_hot(ys, num_classes=27).float()
+
+# display one hot encodings
+""" plt.imshow(xenc)
 plt.imshow(yenc)
-plt.show()
+plt.show() """
+      
+# print(N[:, 0])
 
-# create one_hot encodings for xs and ys
-
-        
-#print(N[:, 0])
-
-# plt.figure(figsize=(16,16))
-# plt.imshow(N, cmap='Blues')
+""" plt.figure(figsize=(16,16))
+plt.imshow(N, cmap='Blues') """
 
 # Display figure of bigram occurences as a matrix, with bigram and # occurences in each cell
 # for i in range(27):
@@ -64,11 +96,9 @@ plt.show()
  """
  
 # calculate first row of bigram probabilities
-#p = N[0].float()
-#p = p / p.sum()
-
-# seed a psudeo random number generator
-g = torch.Generator().manual_seed(2147483647)
+""" p = N[0].float()
+p = p / p.sum()
+ """
 
 # example: generate 3 numbers and normalize them
 # p = torch.rand(3, generator=g)
@@ -81,10 +111,10 @@ P = (N+1).float()
 
 # normalize each elemnt of each row by the sum of the row.
 # note the 1st arg is the dimension to reduce
-# note "broadcasting rules" allos below operation if starting @ trailing dimension, dimension sizes are equal, one is 1, or one doesn't exist
+# note "broadcasting rules" allows below operation if, starting at trailing dimension, dimension sizes are equal, one is 1, or one doesn't exist
 # 27 27
-# 27 1  ---> operation is braodcastable
-P = P / P.sum(1, keepdim = True)
+# 27 1  ---> operation is broadcastable
+P /= P.sum(1, keepdim = True)
 
 # iteratively append another character based on the bigram distribution of the last character until '.' is appended
 names = []
@@ -104,7 +134,7 @@ for i in range(10):
 log_likelihood = 0.0
 n = 0
 
-for w in [words]:
+for w in words:
     chs = ['.'] + list(w) + ['.'] 
     for ch1, ch2 in zip(chs, chs[1:]):
         ix1 = stoi[ch1]
@@ -113,7 +143,7 @@ for w in [words]:
         logprob = torch.log(prob)
         n += 1
         
-        # log of a product is the sum of the logs
+        # log (abc) = log(a) + log (b) + log (c)
         log_likelihood += logprob
         
         # use nomalized negative log likelihood as loss function
